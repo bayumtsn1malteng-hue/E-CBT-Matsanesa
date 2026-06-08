@@ -101,9 +101,10 @@
         };
 
         // Fungsi untuk mengambil data dari nama_siswa.json dan mengisinya ke datalist
+        const GITHUB_JSON_FILE = "https://raw.githubusercontent.com/bayumtsn1malteng-hue/E-CBT-Matsanesa/refs/heads/main/nama_siswa.json"
         async function loadSiswaData() {
             try {
-                const response = await fetch('nama_siswa.json');
+                const response = await fetch('GITHUB_JSON_FILE');
                 if (!response.ok) throw new Error('Gagal memuat data nama_siswa.json');
                 
                 dataSiswaGlobal = await response.json();
