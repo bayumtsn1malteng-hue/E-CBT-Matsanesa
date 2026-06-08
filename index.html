@@ -14,7 +14,6 @@
 
     <audio id="alert-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-    <!-- POPUP LOGIN (Nama & Kelas) -->
     <div id="login-overlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
             <div class="text-center mb-6">
@@ -24,11 +23,13 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap</label>
-                    <input type="text" id="input-nama" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan nama...">
+                    <input type="text" id="input-nama" list="list-nama" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Masukkan nama..." autocomplete="off">
+                    <datalist id="list-nama"></datalist>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Kelas</label>
-                    <input type="text" id="input-kelas" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: XII IPA 1">
+                    <input type="text" id="input-kelas" list="list-kelas" class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Contoh: XII IPA 1" autocomplete="off">
+                    <datalist id="list-kelas"></datalist>
                 </div>
                 <button onclick="mulaiUjian()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
                     Mulai Kerjakan
@@ -37,7 +38,6 @@
         </div>
     </div>
 
-    <!-- HALAMAN KERJA (Hidden by default) -->
     <div id="main-exam-content" class="hidden">
         <div class="max-w-6xl mx-auto p-4 md:p-8">
             <header class="bg-white shadow-sm rounded-xl p-4 mb-6 border border-slate-200 flex justify-between items-center">
@@ -65,7 +65,6 @@
         </div>
     </div>
 
-    <!-- MODAL PERINGATAN NYONTEK -->
     <div id="warning-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-[200] items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
             <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -80,12 +79,17 @@
     </div>
 
     <script>
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-_GBOnv8Dz580uap7nQzpfkalUFe6hQmBqfCP4ySgVmU1LiTot569HP6vqNQhQklCMQ/exec"; // Ganti dengan URL Apps Script Anda
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxMhXGU8Cpcv2oLjTge2gZsH-C32u4wFIOrmOah80eKQX1Fgos7p6K1qQbvmyhmMsQ4/exec"; 
         let studentData = { nama: "", kelas: "" };
         let violations = 0;
+        let dataSiswaGlobal = []; // Perbaikan: Spasi dihilangkan
 
-        // Cek apakah siswa sudah login sebelumnya (untuk handle refresh otomatis)
-        window.onload = () => {
+        // Handle inisialisasi aplikasi saat halaman dimuat
+        window.onload = async () => {
+            // 1. Load data autocomplete dari JSON
+            await loadSiswaData();
+
+            // 2. Cek session login untuk handle refresh otomatis
             const savedNama = sessionStorage.getItem("student_nama");
             const savedKelas = sessionStorage.getItem("student_kelas");
             
@@ -95,6 +99,55 @@
                 masukHalamanUjian();
             }
         };
+
+        // Fungsi untuk mengambil data dari nama_siswa.json dan mengisinya ke datalist
+        async function loadSiswaData() {
+            try {
+                const response = await fetch('nama_siswa.json');
+                if (!response.ok) throw new Error('Gagal memuat data nama_siswa.json');
+                
+                dataSiswaGlobal = await response.json();
+                
+                const listNama = document.getElementById('list-nama');
+                const listKelas = document.getElementById('list-kelas');
+                
+                const daftarKelasUnik = new Set();
+                
+                listNama.innerHTML = '';
+                listKelas.innerHTML = '';
+                
+                dataSiswaGlobal.forEach(siswa => {
+                    if (siswa["NAMA SISWA"]) {
+                        const namaOption = document.createElement('option');
+                        namaOption.value = siswa["NAMA SISWA"];
+                        listNama.appendChild(namaOption);
+                    }
+                    
+                    if (siswa["KELAS"]) {
+                        daftarKelasUnik.add(siswa["KELAS"].toUpperCase().trim());
+                    }
+                });
+                
+                daftarKelasUnik.forEach(kelas => {
+                    const kelasOption = document.createElement('option');
+                    kelasOption.value = kelas;
+                    listKelas.appendChild(kelasOption);
+                });
+                
+            } catch (error) {
+                console.error("Terjadi kesalahan sistem:", error);
+            }
+        }
+
+        // Fitur Otomatis mengisi kelas jika nama valid terdeteksi
+        document.getElementById('input-nama').addEventListener('input', function(e) {
+            const namaTerpilih = e.target.value;
+            const siswaDitemukan = dataSiswaGlobal.find(siswa => siswa["NAMA SISWA"] === namaTerpilih);
+            
+            if (siswaDitemukan) {
+                document.getElementById('input-kelas').value = siswaDitemukan["KELAS"];
+            }
+        });
 
         function mulaiUjian() {
             const nama = document.getElementById('input-nama').value;
@@ -108,7 +161,6 @@
             studentData.nama = nama;
             studentData.kelas = kelas;
             
-            // Simpan ke session agar tidak hilang saat refresh nyontek
             sessionStorage.setItem("student_nama", nama);
             sessionStorage.setItem("student_kelas", kelas);
 
@@ -139,7 +191,6 @@
         }
 
         function showWarning() {
-            // Hanya jalankan jika siswa sudah login/masuk halaman kerja
             if (document.getElementById('main-exam-content').classList.contains('hidden')) return;
 
             document.getElementById('warning-modal').classList.remove('hidden');
@@ -150,7 +201,7 @@
         }
 
         function closeModal() {
-            window.location.reload();
+           window.location.reload();
         }
 
         // DETEKSI NYONTEK (Tab Switch / Minimize)
