@@ -21,3 +21,7 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+
+#Nama Siswa
+nama_siswa.json
